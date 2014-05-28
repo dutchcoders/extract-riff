@@ -80,13 +80,14 @@ class MxCh(ParentChunk):
 
         self.block_size = chunk.block_size
         self.signature = chunk.signature
-        """
+
         if self.f.read(4)=='\00\00\06\00':
             print ("BITMAP", len(chunk.data))
             with open("/tmp/remco.bmp", 'w') as w:
-                w.write(chunk.data)
+                w.write("BM")
+                w.write(chunk.data[2:])
             pass
-        """
+
         self.data = chunk.data
 
     def __str__(self):
@@ -133,11 +134,11 @@ class MxOb(ParentChunk):
             self.f.read(4)
             self.s3=self.read_c_str(self.f)
             self.f.read(6 * 16 - 2 )
-            self.path=self.read_c_str(self.f)
+            self.s4=self.read_c_str(self.f)
             self.path=self.read_c_str(self.f)
             #import binascii
             self.f.read(12 )
-            self.read_c_str(self.f)
+            print(self.read_c_str(self.f))
             self.f.read(6)
             #print (binascii.hexlify(self.f.read(10)))
         elif self.s1==6:
@@ -153,8 +154,6 @@ class MxOb(ParentChunk):
             self.f.read(4)
             self.s3=self.read_c_str(self.f)
             self.f.read(6 * 16 - 2)
-            print(self.read_c_str(self.f))
-
         elif self.s1==11:
             self.s2=self.read_c_str(self.f)
             self.f.read(4)
