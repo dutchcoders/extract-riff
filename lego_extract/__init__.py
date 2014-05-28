@@ -80,13 +80,13 @@ class MxCh(ParentChunk):
 
         self.block_size = chunk.block_size
         self.signature = chunk.signature
-
+        """
         if self.f.read(4)=='\00\00\06\00':
             print ("BITMAP", len(chunk.data))
             with open("/tmp/remco.bmp", 'w') as w:
                 w.write(chunk.data)
             pass
-
+        """
         self.data = chunk.data
 
     def __str__(self):
