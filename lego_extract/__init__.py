@@ -2,6 +2,9 @@ from __future__ import print_function
 import struct
 import sys
 from StringIO import StringIO
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Subchunks also have the same structure as chunks. A subchunk is simply any chunk that is contained within another chunk. The only chunks that may contain subchunks are the RIFF file chunk RIFF and the list chunk, LIST (explained in the next section). All other chunks may contain only data.
 
@@ -48,26 +51,70 @@ class ParentChunk(Chunk):
 
             if (subchunk.signature=='LIST'):
                 p = List(subchunk, StringIO(subchunk.data))
-                print (p)
+                #print (p)
                 for x in p.subchunks():
                     yield x
             elif (subchunk.signature=='MxOb'):
                 p = MxOb(subchunk, StringIO(subchunk.data))
-                print (p)
-                for x in p.subchunks():
-                    yield x
+                #print ("{0} >>> ".format(p))
+                yield p
+                #for x in p.subchunks():
+                #    yield x
+                #print ("<<< {0}".format(p))
             elif (subchunk.signature=='MxCh'):
                 p = MxCh(subchunk, StringIO(subchunk.data))
-                print (p)
+                yield p
                 pass
             elif (subchunk.signature=='MxSt'):
                 p = MxSt(subchunk, StringIO(subchunk.data))
-                print (p)
-                for x in p.subchunks():
-                    yield x
+                logger.info("found stream")
+                logger.debug ("{0} >>> ".format(p))
+                iter_subchunks = p.subchunks()
+                mxob = iter_subchunks.next()
+
+                # wav 
+                # /Applications/VLC.app/Contents/MacOS/VLC --demux=rawaud --rawaud-channels 1 --rawaud-samplerate 9216 /tmp/lego/273
+
+                logger.info("exporting object {0}".format(mxob))
+                logger.info("exporting object {0} {1} {2}".format(mxob.s1, mxob.id, mxob.s3))
+
+
+                with open('/tmp/lego/' + str(mxob.id) + '.' + mxob.ext, 'wb') as f:
+                    #f.write("BM")
+
+                    if mxob.s1==4:
+                        #wav
+                        x = iter_subchunks.next()
+
+                        try:
+                            import binascii
+                            logger.info(binascii.hexlify(x.data[0:40]))
+                            logger.info(binascii.hexlify(x.data[18:20]))
+                            data = StringIO(x.data[18:])
+                            bitrate1 = struct.unpack('<H', data.read(2))[0]
+                            data.read(2)
+                            bitrate2 = struct.unpack('<H', data.read(2))[0]
+                            data.read(2)
+                            idk = struct.unpack('<H', data.read(2))[0]
+                            bits = struct.unpack('<H', data.read(2))[0]
+                            logger.info ("Audio format might be %dHz or %dHz, with %d bits\n" % ( bitrate1, bitrate2, bits))
+                        except Exception, exc:
+                            logger.error(exc)
+
+                        f.write(x.data[15:])
+                    elif mxob.s1==10:
+                        f.write("BM") 
+
+                    for x in iter_subchunks:
+                        f.write(x.data[15:])
+                        import binascii
+                        logger.info(binascii.hexlify(x.data[:40]))
+                logger.debug("<<< {0}".format(p))
 
             elif (subchunk.signature=='pad '):
-                print ("Skipping padding")
+                #print ("Skipping padding")
+                logger.debug("Skipping padding")
+                pass
             else:
                 yield subchunk
 
@@ -80,19 +127,25 @@ class MxCh(ParentChunk):
 
         self.block_size = chunk.block_size
         self.signature = chunk.signature
-
-        if self.f.read(4)=='\00\00\06\00':
-            print ("BITMAP", len(chunk.data))
-            with open("/tmp/remco.bmp", 'w') as w:
-                w.write("BM")
-                w.write(chunk.data[2:])
-            pass
+        import binascii
+        (self.mode, self.id_) = struct.unpack("<hL", self.f.read(6))
+        
+        if self.mode == 0: 
+            with open("/tmp/{0}.exp".format(self.id_), 'w') as w:
+                w.write('BM')
+                w.write(chunk.data[6:])
+        elif self.mode == 16: 
+            with open("/tmp/{0}.exp".format(self.id_), 'a+b') as w:
+                w.write(chunk.data[6:])
+        elif self.mode == 2: 
+            with open("/tmp/{0}.exp".format(self.id_), 'a+b') as w:
+                w.write(chunk.data[6:])
 
         self.data = chunk.data
 
     def __str__(self):
         import binascii
-        return ("(MxCh Chunk) {0} {1} {2}".format(self.signature, self.block_size, binascii.hexlify(self.data[:40]) ))
+        return ("(MxCh Chunk) {0} {1} {2} {3} {4}".format(self.signature, self.block_size, self.id_, self.mode, binascii.hexlify(self.data[:40]) ))
 
 class MxOb(ParentChunk):
     """
@@ -119,33 +172,44 @@ class MxOb(ParentChunk):
         size = struct.calcsize(HEADER)
         data = self.f.read(size)
         self.s1 = (struct.unpack(HEADER,data))[0]
+        self.ext='unknown'
+
+        import binascii
 
         if self.s1==4:
+            # WAV?
+            self.ext = 'wav'
             self.s2=self.read_c_str(self.f)
-            self.f.read(4)
+            print (binascii.hexlify(self.f.read(4)))
             self.s3=self.read_c_str(self.f)
-            self.f.read(6 * 16 - 2)
+            self.id = struct.unpack("<L", self.f.read(4))[0]
+            print (binascii.hexlify(self.f.read(6 * 16 - 6)))
             self.path=self.read_c_str(self.f)
             self.s4=self.read_c_str(self.f)
-            data = self.f.read(12)
+            print (binascii.hexlify( self.f.read(12)))
             self.s4=self.read_c_str(self.f)
+            print (binascii.hexlify(self.f.read(12)))
         elif self.s1==3:
+            # SMK? / FLC / Video?
+            # http://wiki.multimedia.cx/index.php?title=Smacker
             self.s2=self.read_c_str(self.f)
-            self.f.read(4)
+            print (binascii.hexlify(self.f.read(4)))
             self.s3=self.read_c_str(self.f)
-            self.f.read(6 * 16 - 2 )
+            self.id = struct.unpack("<L", self.f.read(4))[0]
+            print (binascii.hexlify(self.f.read(6 * 16 - 6 )))
             self.s4=self.read_c_str(self.f)
             self.path=self.read_c_str(self.f)
             #import binascii
-            self.f.read(12 )
+            print (binascii.hexlify(self.f.read(12 )))
             print(self.read_c_str(self.f))
-            self.f.read(6)
+            print (binascii.hexlify(self.f.read(6)))
             #print (binascii.hexlify(self.f.read(10)))
         elif self.s1==6:
             self.s2=self.read_c_str(self.f)
             self.f.read(4)
             self.s3=self.read_c_str(self.f)
-            self.f.read(6 * 16 - 2 )
+            self.id = struct.unpack("<L", self.f.read(4))[0]
+            self.f.read(6 * 16 - 6 )
             self.path=self.read_c_str(self.f)
             #import binascii
             #print (binascii.hexlify(self.f.read(10)))
@@ -153,12 +217,15 @@ class MxOb(ParentChunk):
             self.s2=self.read_c_str(self.f)
             self.f.read(4)
             self.s3=self.read_c_str(self.f)
-            self.f.read(6 * 16 - 2)
+            self.id = struct.unpack("<L", self.f.read(4))[0]
+            print (binascii.hexlify(self.f.read(6 * 16 - 6 )))
+            print(self.read_c_str(self.f))
         elif self.s1==11:
             self.s2=self.read_c_str(self.f)
             self.f.read(4)
             self.s3=self.read_c_str(self.f)
-            self.f.read(6 * 16 - 2)
+            self.id = struct.unpack("<L", self.f.read(4))[0]
+            self.f.read(6 * 16 - 6)
             self.s4=self.read_c_str(self.f)
             self.path=self.read_c_str(self.f)
             print ('s4', self.s4)
@@ -171,12 +238,13 @@ class MxOb(ParentChunk):
             print (len(data), binascii.hexlify(data))
         elif self.s1==10:
             # bitmap?
+            self.ext = 'bmp'
             import binascii
             self.s2=self.read_c_str(self.f)
             print (binascii.hexlify(self.f.read(4)))
             self.s3=self.read_c_str(self.f)
-            print("ID", binascii.hexlify(self.f.read(2)))
-            print(binascii.hexlify(self.f.read(6 * 16 - 4)))
+            self.id = struct.unpack("<L", self.f.read(4))[0]
+            print(binascii.hexlify(self.f.read(6 * 16 - 6)))
             self.s4=self.read_c_str(self.f)
             self.path=self.read_c_str(self.f)
             print (binascii.hexlify(self.f.read(12)))
@@ -209,6 +277,40 @@ class MxSt(ParentChunk):
         self.block_size = chunk.block_size
         self.signature = chunk.signature
         self.data = chunk.data
+
+        subchunk_iter = self.subchunks()
+        """
+        data = StringIO(subchunk_iter.next()).data
+    
+        data.seek(18, 1)
+        bitrate1 = struct.unpack('<H', data.read(2))[0]
+        data.seek(2, 1)
+        bitrate2 = struct.unpack('<H', data.read(2))[0]
+        data.seek(2, 1)
+        idk = struct.unpack('<H', data.read(2))[0]
+        bits = struct.unpack('<H', data.read(2))[0]
+
+        print ("\nAudio format might be %dHz or %dHz, with %d bits\n" % (        bitrate1, bitrate2, bits))
+        """
+        """
+        i = 0
+        for subchunk in subchunk_iter:
+            print ("BLA", subchunk)
+            if i==1:
+                print ("REMC")
+                data = StringIO(subchunk.data)
+            
+                data.seek(18, 1)
+                bitrate1 = struct.unpack('<H', data.read(2))[0]
+                data.seek(2, 1)
+                bitrate2 = struct.unpack('<H', data.read(2))[0]
+                data.seek(2, 1)
+                idk = struct.unpack('<H', data.read(2))[0]
+                bits = struct.unpack('<H', data.read(2))[0]
+
+                print ("\nAudio format might be %dHz or %dHz, with %d bits\n" % (        bitrate1, bitrate2, bits))
+            i = i +1
+        """ 
         """
         HEADER = "<4sL2x29s"
         size = struct.calcsize(HEADER)
@@ -217,7 +319,7 @@ class MxSt(ParentChunk):
         """
     def __str__(self):
         import binascii
-        return ("(MxSt Chunk)")# {0} {1} {2} {3}".format(self.s1, self.s2, self.s3, binascii.hexlify(self.s3)))
+        return ("(MxSt Chunk) {0}".format(binascii.hexlify(self.data[:40])))# {0} {1} {2} {3}".format(self.s1, self.s2, self.s3, binascii.hexlify(self.s3)))
 
 class RIFF(ParentChunk):
     def __init__(self, f):
@@ -248,6 +350,9 @@ class List(ParentChunk):
         size = struct.calcsize(HEADER)
         data = self.f.read(size)
         (self.list_type) = (struct.unpack(HEADER,data))
+
+        if self.list_type[0]=='MxDa':
+            pass
 
         if self.list_type[0]=='MxCh':
             print ("BLA")
