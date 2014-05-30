@@ -44,6 +44,8 @@ class ParentChunk(Chunk):
             (subchunk.signature, subchunk.block_size) = (struct.unpack(SUBCHUNK,data))
 
             subchunk.data = self.f.read(subchunk.block_size)
+            import binascii
+            logger.debug ("{0} {1} {2}".format(subchunk.signature, subchunk.block_size, binascii.hexlify(subchunk.data[:50])))
 
             # round up to even word boundary
             if (subchunk.block_size % 2==1):
@@ -51,15 +53,18 @@ class ParentChunk(Chunk):
 
             if (subchunk.signature=='LIST'):
                 p = List(subchunk, StringIO(subchunk.data))
-                #print (p)
+                print (p)
                 for x in p.subchunks():
+                    print (x)
                     yield x
             elif (subchunk.signature=='MxOb'):
                 p = MxOb(subchunk, StringIO(subchunk.data))
                 #print ("{0} >>> ".format(p))
+                # yield subobjects
                 yield p
-                #for x in p.subchunks():
-                #    yield x
+
+                for x in p.subchunks():
+                    yield x
                 #print ("<<< {0}".format(p))
             elif (subchunk.signature=='MxCh'):
                 p = MxCh(subchunk, StringIO(subchunk.data))
@@ -67,18 +72,14 @@ class ParentChunk(Chunk):
                 pass
             elif (subchunk.signature=='MxSt'):
                 p = MxSt(subchunk, StringIO(subchunk.data))
+
                 logger.info("found stream")
                 logger.debug ("{0} >>> ".format(p))
                 iter_subchunks = p.subchunks()
                 mxob = iter_subchunks.next()
 
-                # wav 
-                # /Applications/VLC.app/Contents/MacOS/VLC --demux=rawaud --rawaud-channels 1 --rawaud-samplerate 9216 /tmp/lego/273
-
-
-
-                logger.info("exporting object {0}".format(mxob))
-                logger.info("exporting object {0} {1} {2}".format(mxob.s1, mxob.id, mxob.s3))
+                logger.info(">>> exporting object1 {0}".format(mxob))
+                logger.info("exporting object {0} {1} {2} length: {3}".format(mxob.s1, mxob.id, mxob.s3, len(mxob.data)))
 
                 if mxob.s1==4:
                     #wav
@@ -115,26 +116,44 @@ class ParentChunk(Chunk):
 
                     w.close()
                 elif mxob.s1==10:
-                    with open('/tmp/lego/' + str(mxob.id) + '.' + mxob.ext, 'wb') as f:
                         #f.write("BM")
+                        # bitmap meta data
+                        x = iter_subchunks.next()
 
-                            f.write("BM\00\00\00\00\00\00\00\00")
-                            #0400
+                        data = StringIO(x.data[16:])
 
-                            #>>> image = PIL.Image.frombytes('RGBA', (160, 120), data, 'raw')
-                            #>>> image.save('/tmp/remco.gif')
-                            for x in iter_subchunks:
-                                f.write(x.data[15:])
-                                import binascii
-                                logger.info(binascii.hexlify(x.data[:80]))
+                        import binascii
+                        print (binascii.hexlify(x.data))
+
+                        w = StringIO()
+
+                        for x in iter_subchunks:
+                            w.write(x.data[16:])
+                            import binascii
+                            logger.info(binascii.hexlify(x.data[:80]))
+
+                        import PIL
+                        import os
+                        import PIL.Image
+                        image = PIL.Image.frombytes('RGBA', (160, 120), w.getvalue(), 'raw')
+                        image.save('/tmp/lego/' + str(mxob.id) + '_' + os.path.basename(mxob.s3) + ".gif")
+                elif mxob.s1==7:
+                    print (">>> ANIMATION (7)")
+                    for x in iter_subchunks:
+                        import binascii
+                        logger.debug(binascii.hexlify(x.data[:80]))
+                    print ("<<< ANIMATION (7)")
+
                 else:
                     with open('/tmp/lego/' + str(mxob.id) + '.' + mxob.ext, 'wb') as f:
                         for x in iter_subchunks:
                             f.write(x.data[15:])
                             import binascii
-                            logger.info(binascii.hexlify(x.data[:80]))
+                            logger.debug(str(x))
+                            logger.debug(binascii.hexlify(x.data[:80]))
                 logger.debug("<<< {0}".format(p))
 
+                logger.info("<<< exporting object {0} {1} {2}".format(mxob.s1, mxob.id, mxob.s3))
             elif (subchunk.signature=='pad '):
                 #print ("Skipping padding")
                 logger.debug("Skipping padding")
@@ -169,7 +188,7 @@ class MxCh(ParentChunk):
 
     def __str__(self):
         import binascii
-        return ("(MxCh Chunk) {0} {1} {2} {3} {4}".format(self.signature, self.block_size, self.id_, self.mode, binascii.hexlify(self.data[:40]) ))
+        return ("(MxCh Chunk) {0} {1} {2} {3} {4}".format(self.signature, self.block_size, self.id_, self.mode, binascii.hexlify(self.data[16:50]) ))
 
 class MxOb(ParentChunk):
     """
@@ -188,6 +207,7 @@ class MxOb(ParentChunk):
         self.s3 = None
         self.s4 = None
         self.path = None
+        self.id = None
 
         self.f=StringIO(chunk.data)
         import binascii
@@ -226,7 +246,7 @@ class MxOb(ParentChunk):
             #import binascii
             print (binascii.hexlify(self.f.read(12 )))
             print(self.read_c_str(self.f))
-            print (binascii.hexlify(self.f.read(6)))
+            print (binascii.hexlify(self.f.read(12)))
             #print (binascii.hexlify(self.f.read(10)))
         elif self.s1==6:
             self.s2=self.read_c_str(self.f)
@@ -242,8 +262,13 @@ class MxOb(ParentChunk):
             self.f.read(4)
             self.s3=self.read_c_str(self.f)
             self.id = struct.unpack("<L", self.f.read(4))[0]
-            print (binascii.hexlify(self.f.read(6 * 16 - 6 )))
-            print(self.read_c_str(self.f))
+            print (binascii.hexlify(self.f.read(6 * 16 - 8 )))
+
+            data = (binascii.hexlify(self.f.read(2 )))
+            print ("data", data)
+            if not data == '0000':
+                self.s4 = self.read_c_str(self.f)
+
         elif self.s1==11:
             self.s2=self.read_c_str(self.f)
             self.f.read(4)
@@ -379,7 +404,6 @@ class List(ParentChunk):
             pass
 
         if self.list_type[0]=='MxCh':
-            print ("BLA")
             self.f.read(4)
         pass
         """
