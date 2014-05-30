@@ -58,12 +58,23 @@ class ParentChunk(Chunk):
             if (subchunk.signature=='LIST'):
                 p = List(subchunk, StringIO(subchunk.data))
                 logger.debug(p)
+                yield p
                 #print (p)
                 for x in p.subchunks():
                     #print (x)
                     yield x
             elif (subchunk.signature=='MxDa'):
+                yield subchunk
                 # Data?
+                pass
+            elif (subchunk.signature=='MxHd'):
+                logger.debug(subchunk)
+                yield subchunk
+                pass
+            elif (subchunk.signature=='MxOf'):
+                logger.debug(subchunk)
+                yield subchunk
+                pass
             elif (subchunk.signature=='MxOb'):
                 p = MxOb(subchunk, StringIO(subchunk.data))
                 logger.debug(p)
@@ -85,7 +96,12 @@ class ParentChunk(Chunk):
                 logger.debug(p)
                 #logger.info("found stream")
                 #logger.debug ("{0} >>> ".format(p))
+                yield p
                 iter_subchunks = p.subchunks()
+                for x in iter_subchunks:
+                    yield x
+                continue
+                """
                 mxob = iter_subchunks.next()
 
                 #logger.info(">>> exporting object1 {0}".format(mxob))
@@ -164,13 +180,13 @@ class ParentChunk(Chunk):
                 #logger.debug("<<< {0}".format(p))
 
                 #logger.info("<<< exporting object {0} {1} {2}".format(mxob.s1, mxob.id, mxob.s3))
+                """
             elif (subchunk.signature=='pad '):
                 #print ("Skipping padding")
-                #logger.debug("Skipping padding")
+                logger.debug("Skipping padding")
                 pass
             else:
-                logger.debug(subchunk)
-                yield subchunk
+                raise Exception("Unknown chunk found {0}.".format(subchunk))
 
     def __str__(self):
         return ''.join(['\t' for i in range(self.level)]) + "(ParentChunk): Block size: {0}\nSignature: {1}\n".format(self.block_size, self.signature)
@@ -185,24 +201,12 @@ class MxCh(ParentChunk):
         self.parent = chunk.parent
 
         import binascii
-        (self.mode, self.id_) = struct.unpack("<hL", self.f.read(6))
-        
-        if self.mode == 0: 
-            with open("/tmp/{0}.exp".format(self.id_), 'w') as w:
-                w.write('BM')
-                w.write(chunk.data[6:])
-        elif self.mode == 16: 
-            with open("/tmp/{0}.exp".format(self.id_), 'a+b') as w:
-                w.write(chunk.data[6:])
-        elif self.mode == 2: 
-            with open("/tmp/{0}.exp".format(self.id_), 'a+b') as w:
-                w.write(chunk.data[6:])
-
+        (self.mode, self.id) = struct.unpack("<hL", self.f.read(6))
         self.data = chunk.data
 
     def __str__(self):
         import binascii
-        return (''.join(['\t' for i in range(self.level)]) + "(MxCh Chunk) Parent: {0} {1} {2} id: {3} {4} {5}".format(self.parent, self.signature, self.block_size, self.id_, self.mode, binascii.hexlify(self.data[16:50]) ))
+        return (''.join(['\t' for i in range(self.level)]) + "(MxCh Chunk) Parent: {0} {1} {2} id: {3} mode: {4} {5}".format(self.parent, self.signature, self.block_size, self.id, self.mode, binascii.hexlify(self.data[16:50]) ))
 
 class MxOb(ParentChunk):
     """
@@ -347,6 +351,10 @@ class MxOb(ParentChunk):
         return (''.join(['\t' for i in range(self.level)]) + "(MxOb Chunk) '{0}' {1} id: {2} {3} {4} {5} {6} {7}".format(self.signature, self.block_size, self.id, self.s1, self.s2, self.s3, self.s4, self.path ))
 
 class MxSt(ParentChunk):
+    """ 
+    MxSt (Set) contains of MxOb (object) and List (MxDa) (data)
+    """
+
     def __init__(self, chunk, f):
         super(MxSt, self).__init__(f)
 
