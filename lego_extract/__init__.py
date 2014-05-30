@@ -75,40 +75,63 @@ class ParentChunk(Chunk):
                 # wav 
                 # /Applications/VLC.app/Contents/MacOS/VLC --demux=rawaud --rawaud-channels 1 --rawaud-samplerate 9216 /tmp/lego/273
 
+
+
                 logger.info("exporting object {0}".format(mxob))
                 logger.info("exporting object {0} {1} {2}".format(mxob.s1, mxob.id, mxob.s3))
 
+                if mxob.s1==4:
+                    #wav
+                    x = iter_subchunks.next()
 
-                with open('/tmp/lego/' + str(mxob.id) + '.' + mxob.ext, 'wb') as f:
-                    #f.write("BM")
+                    # portions thanks to LIME
+                    try:
+                        import binascii
+                        logger.info(binascii.hexlify(x.data[0:40]))
+                        logger.info(binascii.hexlify(x.data[18:20]))
+                        data = StringIO(x.data[16:])
+                        bitrate1 = struct.unpack('<H', data.read(2))[0]
+                        data.read(2)
+                        bitrate2 = struct.unpack('<H', data.read(2))[0]
+                        data.read(2)
+                        idk = struct.unpack('<H', data.read(2))[0]
+                        bits = struct.unpack('<H', data.read(2))[0]
+                        logger.info ("Audio format might be %dHz or %dHz, with %d bits\n" % ( bitrate1, bitrate2, bits))
+                    except Exception, exc:
+                        logger.error(exc)
+                    
+                    import os
+                    logger.info("Exporting wav to " + '/tmp/lego/' + os.path.basename(mxob.s3) + '.' + mxob.ext)
 
-                    if mxob.s1==4:
-                        #wav
-                        x = iter_subchunks.next()
-
-                        try:
-                            import binascii
-                            logger.info(binascii.hexlify(x.data[0:40]))
-                            logger.info(binascii.hexlify(x.data[18:20]))
-                            data = StringIO(x.data[18:])
-                            bitrate1 = struct.unpack('<H', data.read(2))[0]
-                            data.read(2)
-                            bitrate2 = struct.unpack('<H', data.read(2))[0]
-                            data.read(2)
-                            idk = struct.unpack('<H', data.read(2))[0]
-                            bits = struct.unpack('<H', data.read(2))[0]
-                            logger.info ("Audio format might be %dHz or %dHz, with %d bits\n" % ( bitrate1, bitrate2, bits))
-                        except Exception, exc:
-                            logger.error(exc)
-
-                        f.write(x.data[15:])
-                    elif mxob.s1==10:
-                        f.write("BM") 
+                    import wave
+                    w = wave.open('/tmp/lego/' + str(mxob.id) + '_' + os.path.basename(mxob.s3) + ".wav", 'wb')
+                    w.setnchannels(1)
+                    w.setframerate(bitrate1)
+                    w.setsampwidth(bits / 8)
 
                     for x in iter_subchunks:
-                        f.write(x.data[15:])
-                        import binascii
-                        logger.info(binascii.hexlify(x.data[:40]))
+                        w.writeframesraw(x.data[16:])
+
+                    w.close()
+                elif mxob.s1==10:
+                    with open('/tmp/lego/' + str(mxob.id) + '.' + mxob.ext, 'wb') as f:
+                        #f.write("BM")
+
+                            f.write("BM\00\00\00\00\00\00\00\00")
+                            #0400
+
+                            #>>> image = PIL.Image.frombytes('RGBA', (160, 120), data, 'raw')
+                            #>>> image.save('/tmp/remco.gif')
+                            for x in iter_subchunks:
+                                f.write(x.data[15:])
+                                import binascii
+                                logger.info(binascii.hexlify(x.data[:80]))
+                else:
+                    with open('/tmp/lego/' + str(mxob.id) + '.' + mxob.ext, 'wb') as f:
+                        for x in iter_subchunks:
+                            f.write(x.data[15:])
+                            import binascii
+                            logger.info(binascii.hexlify(x.data[:80]))
                 logger.debug("<<< {0}".format(p))
 
             elif (subchunk.signature=='pad '):
