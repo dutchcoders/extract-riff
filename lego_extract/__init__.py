@@ -90,6 +90,7 @@ class ParentChunk(Chunk):
                         logger.info(binascii.hexlify(x.data[0:40]))
                         logger.info(binascii.hexlify(x.data[18:20]))
                         data = StringIO(x.data[16:])
+                        data.read(2)
                         bitrate1 = struct.unpack('<H', data.read(2))[0]
                         data.read(2)
                         bitrate2 = struct.unpack('<H', data.read(2))[0]
