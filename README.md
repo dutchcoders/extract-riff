@@ -21,6 +21,8 @@ Header
 
 
 # known issues
+* INFOMAIN.SI
+* ACT2MAIN.SI
 
 # contributors
 * Tim 

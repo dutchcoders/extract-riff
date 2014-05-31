@@ -100,93 +100,13 @@ class ParentChunk(Chunk):
                 iter_subchunks = p.subchunks()
                 for x in iter_subchunks:
                     yield x
-                continue
-                """
-                mxob = iter_subchunks.next()
-
-                #logger.info(">>> exporting object1 {0}".format(mxob))
-                #logger.info("exporting object {0} {1} {2} length: {3}".format(mxob.s1, mxob.id, mxob.s3, len(mxob.data)))
-
-                if mxob.s1==4:
-                    #wav
-                    x = iter_subchunks.next()
-
-                    # portions thanks to LIME
-                    try:
-                        import binascii
-                        #logger.info(binascii.hexlify(x.data[0:40]))
-                        #logger.info(binascii.hexlify(x.data[18:20]))
-                        data = StringIO(x.data[16:])
-                        data.read(2)
-                        bitrate1 = struct.unpack('<H', data.read(2))[0]
-                        data.read(2)
-                        bitrate2 = struct.unpack('<H', data.read(2))[0]
-                        data.read(2)
-                        idk = struct.unpack('<H', data.read(2))[0]
-                        bits = struct.unpack('<H', data.read(2))[0]
-                        logger.info ("Audio format might be %dHz or %dHz, with %d bits\n" % ( bitrate1, bitrate2, bits))
-                    except Exception, exc:
-                        logger.error(exc)
-                    
-                    import os
-                    logger.info("Exporting wav to " + '/tmp/lego/' + os.path.basename(mxob.s3) + '.' + mxob.ext)
-
-                    import wave
-                    w = wave.open('/tmp/lego/' + str(mxob.id) + '_' + os.path.basename(mxob.s3) + ".wav", 'wb')
-                    w.setnchannels(1)
-                    w.setframerate(bitrate1)
-                    w.setsampwidth(bits / 8)
-
-                    for x in iter_subchunks:
-                        w.writeframesraw(x.data[16:])
-
-                    w.close()
-                elif mxob.s1==10:
-                        #f.write("BM")
-                        # bitmap meta data
-                        x = iter_subchunks.next()
-
-                        data = StringIO(x.data[16:])
-
-                        import binascii
-                        #print (binascii.hexlify(x.data))
-
-                        w = StringIO()
-
-                        for x in iter_subchunks:
-                            w.write(x.data[16:])
-                            import binascii
-                            #logger.info(binascii.hexlify(x.data[:80]))
-
-                        import PIL
-                        import os
-                        import PIL.Image
-                        image = PIL.Image.frombytes('RGBA', (160, 120), w.getvalue(), 'raw')
-                        image.save('/tmp/lego/' + str(mxob.id) + '_' + os.path.basename(mxob.s3) + ".gif")
-                elif mxob.s1==7:
-                    #print (">>> ANIMATION (7)")
-                    for x in iter_subchunks:
-                        import binascii
-                        #logger.debug(binascii.hexlify(x.data[:80]))
-                    #print ("<<< ANIMATION (7)")
-
-                else:
-                    with open('/tmp/lego/' + str(mxob.id) + '.' + mxob.ext, 'wb') as f:
-                        for x in iter_subchunks:
-                            f.write(x.data[15:])
-                            import binascii
-                            logger.debug(str(x))
-                            #logger.debug(binascii.hexlify(x.data[:80]))
-                #logger.debug("<<< {0}".format(p))
-
-                #logger.info("<<< exporting object {0} {1} {2}".format(mxob.s1, mxob.id, mxob.s3))
-                """
             elif (subchunk.signature=='pad '):
                 #print ("Skipping padding")
                 logger.debug("Skipping padding")
                 pass
             else:
-                raise Exception("Unknown chunk found {0}.".format(subchunk))
+                import binascii
+                raise Exception("Unknown chunk found {0} {1}.".format(subchunk, binascii.hexlify(subchunk.data[:40])))
 
     def __str__(self):
         return ''.join(['\t' for i in range(self.level)]) + "(ParentChunk): Block size: {0}\nSignature: {1}\n".format(self.block_size, self.signature)
