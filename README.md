@@ -7,15 +7,17 @@ Extracts data (Music, Bitmaps, ...) for Lego Island RIFF files.
 # description of the file format
 
 ## MxOb
+The MxOb describes the object. It contains an id, name and meta information.
 
 ## MxSt
 
 ## MxCh
+The MxCh contains the object id it belongs to and the actual data.
 
-## Mxda
+## MxDa
 
 ## MxHd
-Header
+The MxHd contains the header of the SI file.
 
 ## MxOf
 
