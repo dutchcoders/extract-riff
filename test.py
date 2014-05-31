@@ -13,7 +13,7 @@ def dump(path):
     for path in args.paths:
         for filename in glob(path): #$'/Users/remco/Downloads/documents-export-2014-05-13/NOCD.SI'):
             with open(filename, 'r') as f:
-                logger.info ("Extracting {0}.".format(filename))
+                logger.info ("Dumping {0}.".format(filename))
 
                 riff = RIFF(f)
                 for subchunk in riff.subchunks():
@@ -25,7 +25,7 @@ def extract(path, dest):
             # extract
             import os
             with open(filename, 'r') as f:
-                logger.info ("Dumping {0}.".format(filename))
+                logger.info ("Extracting {0}.".format(filename))
                 try:
                     os.mkdir(os.path.join(dest, os.path.basename(filename)))
                 except OSError, exc:
