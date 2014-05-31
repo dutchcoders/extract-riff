@@ -20,6 +20,12 @@ Header
 ## MxOf
 
 
+# known issues
+
+# contributors
+* Tim 
+* Remco (DutchCoders
+
 # usage
 ```
 python ./test.py --extract --output "/tmp/lego/bla1/" "/Users/remco/Downloads/documents-export-2014-05-13/JUKEBOXW.SI"
