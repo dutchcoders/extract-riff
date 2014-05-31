@@ -4,10 +4,26 @@ extract-riff
 
 Extracts data for Lego RIFF files.
 
-# usage
+# description of the file format
 
+## MxOb
+
+## MxSt
+
+## MxCh
+
+## Mxda
+
+## MxHd
+Header
+
+## MxOf
+
+
+# usage
 ```
-python ./test.py JUKEBOXW.SI
+python ./test.py --extract --output "/tmp/lego/bla1/" "/Users/remco/Downloads/documents-export-2014-05-13/JUKEBOXW.SI"
+python ./test.py --dump "/Users/remco/Downloads/documents-export-2014-05-13/JUKEBOXW.SI"
 ```
 
 # references
