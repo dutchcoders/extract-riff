@@ -2,7 +2,7 @@
 extract-riff
 ============
 
-Extracts data for Lego RIFF files.
+Extracts data (Music, Bitmaps, ...) for Lego Island RIFF files.
 
 # description of the file format
 
@@ -24,7 +24,7 @@ Header
 
 # contributors
 * Tim 
-* Remco (DutchCoders
+* Remco (DutchCoders)
 
 # usage
 ```
@@ -40,3 +40,4 @@ python ./test.py --dump "/Users/remco/Downloads/documents-export-2014-05-13/JUKE
 * http://www.fileformat.info/format/riff/egff.htm
 * http://www.sonicspot.com/guide/wavefiles.html
 * http://www.johnloomis.org/cpe102/asgn/asgn1/riff.html
+* https://github.com/mathom/LIME
