@@ -153,7 +153,7 @@ def extract(path, dest):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.INFO,
                     format='%(message)s',
                     handlers=[logging.StreamHandler()])
 
