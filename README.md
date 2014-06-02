@@ -23,8 +23,8 @@ The MxHd contains the header of the SI file.
 
 
 # known issues
-* INFOMAIN.SI
-* ACT2MAIN.SI
+* INFOMAIN.SI (0x34dfffa should start at 0x034e0000, 6 bytes extra)
+* ACT2MAIN.SI (0x1cbffd6, says it is length 0x22, but should be 0x26, or is should be rounded up or something, to 0x10000?)
 
 # contributors
 * Tim 
